@@ -1,0 +1,7 @@
+*
+
+!pyproject.toml
+!.python-version
+!uv.lock
+!*.py
+!feed_baby
