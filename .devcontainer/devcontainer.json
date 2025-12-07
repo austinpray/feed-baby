@@ -19,10 +19,14 @@
 	"containerEnv": {
 		"CLAUDE_CONFIG_DIR": "${containerWorkspaceFolder}/.claude-user"
 	},
+	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"Anthropic.claude-code"
+				"Anthropic.claude-code",
+				"ms-python.python",
+				"charliermarsh.ruff",
+				"astral-sh.ty"
 			]
 		}
 	}
@@ -35,7 +39,4 @@
 
 	// Uncomment the next line to run commands after the container is created.
 	// "postCreateCommand": "cat /etc/os-release",
-
-	// Configure tool-specific properties.
-	// "customizations": {},
 }
