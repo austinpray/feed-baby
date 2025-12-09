@@ -1,5 +1,6 @@
 """FastAPI application with CSRF protection."""
 
+import os
 import re
 import secrets
 from decimal import Decimal
@@ -14,7 +15,12 @@ from feed_baby.feed import Feed
 
 # CSRF Protection using Synchronizer Token Pattern
 class CSRFProtection:
-    """Simple CSRF protection using synchronizer tokens."""
+    """Simple CSRF protection using synchronizer tokens.
+    
+    Note: This implementation uses in-memory token storage which is suitable for
+    single-process development environments. For production multi-process/multi-server
+    deployments, consider using a shared cache like Redis or a database for token storage.
+    """
     
     def __init__(self):
         self.tokens = {}
@@ -26,7 +32,7 @@ class CSRFProtection:
         return token
     
     def validate_token(self, session_id: str, token: str) -> bool:
-        """Validate a CSRF token."""
+        """Validate a CSRF token using constant-time comparison."""
         expected = self.tokens.get(session_id)
         return expected is not None and secrets.compare_digest(expected, token)
     
@@ -34,10 +40,14 @@ class CSRFProtection:
         """Remove oldest tokens if the cache grows too large.
         
         This prevents memory leaks in production by limiting the number of stored tokens.
-        In a production system, this should be enhanced with time-based expiration.
+        Note: This uses dictionary insertion order (Python 3.7+) as a simple FIFO strategy.
+        For production, consider time-based expiration with explicit timestamps.
+        
+        Args:
+            max_tokens: Maximum number of tokens to keep in memory
         """
         if len(self.tokens) > max_tokens:
-            # Remove oldest half of tokens (simple FIFO strategy)
+            # Remove oldest half of tokens (simple FIFO strategy based on insertion order)
             keys_to_remove = list(self.tokens.keys())[:max_tokens // 2]
             for key in keys_to_remove:
                 del self.tokens[key]
@@ -84,6 +94,9 @@ def bootstrap_server(app: FastAPI, db_path: str) -> None:
     """
     app.state.db_path = db_path
     
+    # Determine if we're in production based on environment
+    is_production = os.environ.get("ENVIRONMENT", "development").lower() == "production"
+    
     templates = Jinja2Templates(directory="templates")
 
     @app.get("/", response_class=HTMLResponse)
@@ -99,7 +112,13 @@ def bootstrap_server(app: FastAPI, db_path: str) -> None:
                 "csrf_token": csrf_token,
             },
         )
-        response.set_cookie("session_id", session_id, httponly=True, samesite="strict")
+        response.set_cookie(
+            "session_id",
+            session_id,
+            httponly=True,
+            samesite="strict",
+            secure=is_production,  # Only send over HTTPS in production
+        )
         return response
 
     @app.get("/feed", response_class=HTMLResponse)
@@ -113,7 +132,13 @@ def bootstrap_server(app: FastAPI, db_path: str) -> None:
                 "csrf_token": csrf_token,
             },
         )
-        response.set_cookie("session_id", session_id, httponly=True, samesite="strict")
+        response.set_cookie(
+            "session_id",
+            session_id,
+            httponly=True,
+            samesite="strict",
+            secure=is_production,  # Only send over HTTPS in production
+        )
         return response
 
     @app.post("/feed", response_model=None)
