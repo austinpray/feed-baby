@@ -208,3 +208,7 @@ __marimo__/
 
 .claude-user/
 .claude/settings.local.json
+
+# feed-baby configuration
+config.toml
+main.db
