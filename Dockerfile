@@ -24,6 +24,7 @@ RUN apt-get update \
        just \
        curl \
        git \
+       procps \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
