@@ -25,8 +25,7 @@
 			"extensions": [
 				"Anthropic.claude-code",
 				"ms-python.python",
-				"charliermarsh.ruff",
-				"astral-sh.ty"
+				"charliermarsh.ruff"
 			]
 		}
 	}
