@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <style>
+        .feed-form,
+        .feed-form input {
+            font-size: xx-large;
+        }
+        .feed-form div {
+            margin-bottom: 0.3em;
+        }
+    </style>
+{% endblock %}
+
+{% block main %}
+    <form class="feed-form" id="feed" action="/feed" method="post">
+        <fieldset>
+            <legend>Log a feed</legend>
+            <div>
+                <label for="ounces">Ounces</label>
+                <input type="number" inputmode="decimal" name="ounces" id="ounces" placeholder="3.0" min="1.0" max="5.0" step="0.25" required="true" />
+            </div>
+            <div>
+                <label for="time">Time</label>
+                <input type="time" name="time" id="time" />
+            </div>
+            <div>
+                <label for="date">Date</label>
+                <input type="date" name="date" id="date" />
+            </div>
+            <input type="hidden" name="timezone" id="timezone" />
+            <input type="submit" value="Submit" />
+        </fieldset>
+    </form>
+    <script>
+        const now = new Date();
+        const ounces = document.getElementById('ounces');
+        const previousOuncesKey = 'previousOunces';
+        const previousOunces = window.localStorage.getItem(previousOuncesKey)
+        if (previousOunces) {
+            ounces.value = previousOunces;
+        }
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        document.getElementById('date').value = `${year}-${month}-${day}`;
+        document.getElementById('time').value = now.toTimeString().slice(0, 5);
+        document.getElementById('feed').addEventListener('submit', function (e) {
+            if (ounces.value) {
+                window.localStorage.setItem(previousOuncesKey, ounces.value);
+            }
+        })
+        document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone
+    </script>
+{% endblock %}

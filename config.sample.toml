@@ -1,0 +1,11 @@
+# Sample configuration for feed-baby application
+# Copy this file to config.toml and adjust values as needed
+
+# Daily feeding goal in ounces
+daily_goal_ounces = 24
+
+# Maximum hours between feedings (must be less than 24)
+max_interval_hours = 3
+
+# Expected sleep duration in hours (must be less than 24)
+sleep_hours = 5

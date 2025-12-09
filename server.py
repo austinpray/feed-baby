@@ -1,12 +1,19 @@
 """Entry point script for the feed-baby application."""
 
-from feed_baby import run
+import os
 
+from feed_baby import bootstrap_server
+from migrate import migrate
 
-def main() -> None:
-    """Main entry point for the server script."""
-    run()
+from fastapi import FastAPI
 
+# Configure database path from environment
+db_path = os.environ.get("DATABASE_URL", "main.db")
 
-if __name__ == "__main__":
-    main()
+# Run migrations
+migrate(db_path)
+
+app = FastAPI()
+
+# Pass db_path to bootstrap
+bootstrap_server(app, db_path)
