@@ -136,3 +136,72 @@ def test_feed_database_operations(tmp_path):
     # Test delete non-existent feed
     deleted = Feed.delete(9999, db_path)
     assert deleted is False
+
+
+def test_feed_pagination(tmp_path):
+    """Test that get_all() pagination works correctly."""
+    from migrate import migrate
+
+    # Create temporary database and apply migrations
+    db_path = str(tmp_path / "test.db")
+    migrate(db_path)
+
+    # Create 25 test feeds
+    for i in range(25):
+        feed = Feed.from_form(
+            ounces=Decimal("3.0"),
+            time=f"{i % 24:02d}:00",
+            date="2025-12-09",
+            timezone="UTC"
+        )
+        feed.save(db_path)
+
+    # Test default limit (50) returns all 25
+    feeds = Feed.get_all(db_path)
+    assert len(feeds) == 25
+
+    # Test custom limit
+    feeds = Feed.get_all(db_path, limit=10)
+    assert len(feeds) == 10
+
+    # Test offset
+    feeds_page1 = Feed.get_all(db_path, limit=10, offset=0)
+    feeds_page2 = Feed.get_all(db_path, limit=10, offset=10)
+    feeds_page3 = Feed.get_all(db_path, limit=10, offset=20)
+    
+    assert len(feeds_page1) == 10
+    assert len(feeds_page2) == 10
+    assert len(feeds_page3) == 5  # Only 5 remaining
+
+    # Verify pages don't overlap
+    assert feeds_page1[0].id != feeds_page2[0].id
+    assert feeds_page2[0].id != feeds_page3[0].id
+
+
+def test_feed_count(tmp_path):
+    """Test that count() returns correct total."""
+    from migrate import migrate
+
+    # Create temporary database and apply migrations
+    db_path = str(tmp_path / "test.db")
+    migrate(db_path)
+
+    # Count should be 0 initially
+    assert Feed.count(db_path) == 0
+
+    # Add feeds and verify count
+    for i in range(10):
+        feed = Feed.from_form(
+            ounces=Decimal("3.0"),
+            time="12:00",
+            date="2025-12-09",
+            timezone="UTC"
+        )
+        feed.save(db_path)
+
+    assert Feed.count(db_path) == 10
+
+    # Delete a feed and verify count decreases
+    feeds = Feed.get_all(db_path)
+    Feed.delete(feeds[0].id, db_path)
+    assert Feed.count(db_path) == 9

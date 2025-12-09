@@ -15,10 +15,24 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
     templates = Jinja2Templates(directory="templates")
 
     @app.get("/", response_class=HTMLResponse)
-    def read_root(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
-        feeds = Feed.get_all(request.app.state.db_path)
+    def read_root(request: Request, page: int = 1) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
+        page = max(1, page)  # Ensure page is at least 1
+        limit = 50
+        offset = (page - 1) * limit
+        
+        feeds = Feed.get_all(request.app.state.db_path, limit=limit, offset=offset)
+        total_feeds = Feed.count(request.app.state.db_path)
+        total_pages = (total_feeds + limit - 1) // limit  # Ceiling division
+        
         return templates.TemplateResponse(
-            request=request, name="index.html", context={"feeds": feeds}
+            request=request, 
+            name="index.html", 
+            context={
+                "feeds": feeds,
+                "page": page,
+                "total_pages": total_pages,
+                "total_feeds": total_feeds,
+            }
         )
 
     @app.get("/feed", response_class=HTMLResponse)

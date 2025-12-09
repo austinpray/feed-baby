@@ -95,11 +95,13 @@ class Feed:
         )
 
     @classmethod
-    def get_all(cls, db_path: str) -> list[Self]:
-        """Get all feeds from database, ordered newest to oldest.
+    def get_all(cls, db_path: str, limit: int = 50, offset: int = 0) -> list[Self]:
+        """Get feeds from database, ordered newest to oldest.
 
         Args:
             db_path: Path to SQLite database
+            limit: Maximum number of feeds to return (default: 50)
+            offset: Number of feeds to skip (default: 0)
 
         Returns:
             List of Feed instances ordered by datetime DESC
@@ -109,10 +111,31 @@ class Feed:
         conn = get_connection(db_path)
         try:
             cursor = conn.execute(
-                "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC"
+                "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC LIMIT ? OFFSET ?",
+                (limit, offset)
             )
             feeds = [cls.from_db(row) for row in cursor.fetchall()]
             return feeds
+        finally:
+            conn.close()
+
+    @classmethod
+    def count(cls, db_path: str) -> int:
+        """Get total count of feeds in database.
+
+        Args:
+            db_path: Path to SQLite database
+
+        Returns:
+            Total number of feeds
+        """
+        from feed_baby.db import get_connection
+
+        conn = get_connection(db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM feeds")
+            result = cursor.fetchone()
+            return result[0] if result else 0
         finally:
             conn.close()
 
