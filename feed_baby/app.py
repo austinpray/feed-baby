@@ -1,10 +1,11 @@
 """FastAPI application with CSRF protection."""
 
+import re
 import secrets
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import FastAPI, Form, Request, HTTPException, Depends
+from fastapi import FastAPI, Form, Request, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -28,19 +29,38 @@ class CSRFProtection:
         """Validate a CSRF token."""
         expected = self.tokens.get(session_id)
         return expected is not None and secrets.compare_digest(expected, token)
+    
+    def cleanup_old_tokens(self, max_tokens: int = 1000) -> None:
+        """Remove oldest tokens if the cache grows too large.
+        
+        This prevents memory leaks in production by limiting the number of stored tokens.
+        In a production system, this should be enhanced with time-based expiration.
+        """
+        if len(self.tokens) > max_tokens:
+            # Remove oldest half of tokens (simple FIFO strategy)
+            keys_to_remove = list(self.tokens.keys())[:max_tokens // 2]
+            for key in keys_to_remove:
+                del self.tokens[key]
 
 
 csrf_protection = CSRFProtection()
 
 
-def get_csrf_token(request: Request) -> str:
-    """Get or create CSRF token for the current session."""
+def get_csrf_token(request: Request) -> tuple[str, str]:
+    """Get or create CSRF token for the current session.
+    
+    Returns:
+        Tuple of (csrf_token, session_id)
+    """
     session_id = request.cookies.get("session_id", "")
     if not session_id:
         session_id = secrets.token_urlsafe(16)
     
     if session_id not in csrf_protection.tokens:
         csrf_protection.generate_token(session_id)
+    
+    # Perform cleanup periodically to prevent memory leaks
+    csrf_protection.cleanup_old_tokens()
     
     return csrf_protection.tokens[session_id], session_id
 

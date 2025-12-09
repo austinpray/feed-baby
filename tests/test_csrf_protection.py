@@ -1,5 +1,6 @@
 """Tests for CSRF protection in the feed-baby application."""
 
+import re
 import pytest
 import tempfile
 from pathlib import Path
@@ -61,7 +62,6 @@ def test_create_feed_requires_csrf_token(client):
     session_id = form_response.cookies.get("session_id")
     
     # Extract CSRF token from the response
-    import re
     token_match = re.search(r'name="csrf_token" value="([^"]+)"', form_response.text)
     assert token_match is not None
     csrf_token = token_match.group(1)
@@ -140,7 +140,6 @@ def test_delete_feed_requires_csrf_token(client, test_db):
     home_response = client.get("/")
     session_id = home_response.cookies.get("session_id")
     
-    import re
     token_match = re.search(r'name="csrf_token" value="([^"]+)"', home_response.text)
     assert token_match is not None
     csrf_token = token_match.group(1)
@@ -233,7 +232,6 @@ def test_csrf_token_is_session_specific(client, test_db):
     response1 = client.get("/")
     session_id_1 = response1.cookies.get("session_id")
     
-    import re
     token_match_1 = re.search(r'name="csrf_token" value="([^"]+)"', response1.text)
     assert token_match_1 is not None, "CSRF token not found in response"
     csrf_token_1 = token_match_1.group(1)
