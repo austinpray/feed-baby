@@ -1,9 +1,10 @@
 from typing import Annotated
 from decimal import Decimal
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from icalendar import Calendar, Event, vDatetime
 
 from feed_baby.feed import Feed
 
@@ -20,6 +21,25 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         return templates.TemplateResponse(
             request=request, name="index.html", context={"feeds": feeds}
         )
+
+    @app.get("/feeds.ics")
+    def feeds_calendar(request: Request):  # pyright: ignore[reportUnusedFunction]
+        cal = Calendar()
+        cal.add("prodid", "-//feed-baby//austinpray.com//")
+        cal.add("version", "2.0")
+
+        feeds = Feed.get_all(request.app.state.db_path)
+        for feed in feeds:
+            event = Event()
+            event.add("summary", "Feed")
+            event.add("dtstart", vDatetime(feed.datetime))
+            event.add("dtend", vDatetime(feed.datetime.add(hours=1)))
+            event.add("description", "Feed the baby")
+            cal.add_component(event)
+
+        ical_data = cal.to_ical().decode("utf-8")
+
+        return Response(content=ical_data, media_type="text/calendar")
 
     @app.get("/feeds/new", response_class=HTMLResponse)
     def new_feed(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
