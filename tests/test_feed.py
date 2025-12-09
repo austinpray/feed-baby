@@ -1,5 +1,6 @@
 """Unit tests for Feed class."""
 
+import sqlite3
 from decimal import Decimal
 import pendulum
 from feed_baby.feed import Feed
@@ -37,10 +38,19 @@ def test_feed_ounces_property_fractional():
 
 def test_feed_from_db():
     """Test creating Feed from database row."""
-    row = (1, 96114, "2025-12-09T14:30:00+00:00")
+    # Create a mock sqlite3.Row object
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE feeds (id INTEGER, volume_ul INTEGER, datetime TEXT)")
+    cursor.execute("INSERT INTO feeds VALUES (1, 96114, '2025-12-09T14:30:00+00:00')")
+    row = cursor.execute("SELECT * FROM feeds").fetchone()
+    conn.close()
+
     feed = Feed.from_db(row)
     assert feed.volume_ul == 96114
     assert feed.ounces == Decimal("3.25")
+    assert feed.id == 1
 
 
 def test_feed_datetime_parsing():
