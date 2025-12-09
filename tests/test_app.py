@@ -1,4 +1,5 @@
 """Integration tests for HTTP endpoints."""
+
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 import pytest
@@ -27,12 +28,15 @@ def test_get_feeds_new_form(client):
 
 def test_post_feeds_create(client):
     """Test POST /feeds creates new feed."""
-    response = client.post("/feeds", data={
-        "ounces": "3.5",
-        "time": "14:30",
-        "date": "2025-12-09",
-        "timezone": "UTC"
-    })
+    response = client.post(
+        "/feeds",
+        data={
+            "ounces": "3.5",
+            "time": "14:30",
+            "date": "2025-12-09",
+            "timezone": "UTC",
+        },
+    )
     assert response.status_code == 200
     assert b"Feed logged" in response.content
 
@@ -40,12 +44,15 @@ def test_post_feeds_create(client):
 def test_delete_feeds_success(client):
     """Test DELETE /feeds/{id} removes feed."""
     # Create a feed first
-    client.post("/feeds", data={
-        "ounces": "3.5",
-        "time": "14:30",
-        "date": "2025-12-09",
-        "timezone": "UTC"
-    })
+    client.post(
+        "/feeds",
+        data={
+            "ounces": "3.5",
+            "time": "14:30",
+            "date": "2025-12-09",
+            "timezone": "UTC",
+        },
+    )
 
     # Delete the feed (feed_id is 1 since it's the first feed)
     # Use follow_redirects=False to check redirect status code

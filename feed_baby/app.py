@@ -46,7 +46,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         return templates.TemplateResponse(request=request, name="feed.html")
 
     @app.post("/feeds", response_class=HTMLResponse)
-    def create_feed( # pyright: ignore[reportUnusedFunction]
+    def create_feed(  # pyright: ignore[reportUnusedFunction]
         request: Request,
         ounces: Annotated[Decimal, Form()],
         time: Annotated[str, Form()],
@@ -74,8 +74,8 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 name="error.html",
                 context={
                     "error": f"Feed with ID {feed_id} not found",
-                    "back_link": "/"
-                }
+                    "back_link": "/",
+                },
             )
 
         # Redirect to home page after successful deletion

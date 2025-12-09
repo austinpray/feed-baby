@@ -96,10 +96,7 @@ def test_feed_database_operations(tmp_path):
 
     # Test save() - create and save a feed
     feed1 = Feed.from_form(
-        ounces=Decimal("3.5"),
-        time="14:30",
-        date="2025-12-09",
-        timezone="UTC"
+        ounces=Decimal("3.5"), time="14:30", date="2025-12-09", timezone="UTC"
     )
     feed1.save(db_path)
 
@@ -112,10 +109,7 @@ def test_feed_database_operations(tmp_path):
 
     # Save another feed
     feed2 = Feed.from_form(
-        ounces=Decimal("4.0"),
-        time="18:00",
-        date="2025-12-09",
-        timezone="UTC"
+        ounces=Decimal("4.0"), time="18:00", date="2025-12-09", timezone="UTC"
     )
     feed2.save(db_path)
 
