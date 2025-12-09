@@ -17,7 +17,9 @@ class Feed:
     volume_ul: int  # Volume in microliters
     datetime: pendulum.DateTime
 
-    def __init__(self, volume_ul: int, datetime: pendulum.DateTime, id: int | None = None):
+    def __init__(
+        self, volume_ul: int, datetime: pendulum.DateTime, id: int | None = None
+    ):
         """Initialize Feed with microliters and datetime.
 
         Args:
@@ -51,7 +53,10 @@ class Feed:
             with conn:
                 conn.execute(
                     "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
-                    (self.volume_ul, self.datetime.in_timezone("UTC").to_iso8601_string()),
+                    (
+                        self.volume_ul,
+                        self.datetime.in_timezone("UTC").to_iso8601_string(),
+                    ),
                 )
         finally:
             conn.close()
@@ -85,14 +90,10 @@ class Feed:
         Returns:
             Feed instance
         """
-        datetime_parsed = pendulum.parse(row['datetime'])
+        datetime_parsed = pendulum.parse(row["datetime"])
         if not isinstance(datetime_parsed, pendulum.DateTime):
             raise ValueError(f"Expected DateTime, got {type(datetime_parsed)}")
-        return cls(
-            volume_ul=row['volume_ul'],
-            datetime=datetime_parsed,
-            id=row['id']
-        )
+        return cls(volume_ul=row["volume_ul"], datetime=datetime_parsed, id=row["id"])
 
     @classmethod
     def get_all(cls, db_path: str, limit: int = 50, offset: int = 0) -> list[Self]:
