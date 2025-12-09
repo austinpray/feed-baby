@@ -1,5 +1,6 @@
 from typing import Annotated
 from decimal import Decimal
+import math
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -22,7 +23,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         
         feeds = Feed.get_all(request.app.state.db_path, limit=limit, offset=offset)
         total_feeds = Feed.count(request.app.state.db_path)
-        total_pages = (total_feeds + limit - 1) // limit  # Ceiling division
+        total_pages = math.ceil(total_feeds / limit) if total_feeds > 0 else 1
         
         return templates.TemplateResponse(
             request=request, 
