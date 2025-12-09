@@ -4,8 +4,31 @@ from decimal import Decimal
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field, ValidationError, field_validator
+import pendulum
 
 from feed_baby.feed import Feed
+
+
+class FeedForm(BaseModel):
+    """Pydantic model for feed form validation."""
+
+    ounces: Decimal = Field(gt=0, le=10, description="Ounces must be greater than 0 and less than or equal to 10")
+    time: str = Field(pattern=r'^\d{2}:\d{2}$', description="Time must be in HH:mm format")
+    date: str = Field(pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date must be in YYYY-MM-DD format")
+    timezone: str = Field(min_length=1, description="Timezone is required")
+
+    @field_validator('timezone')
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        """Validate that timezone is a valid IANA timezone identifier."""
+        try:
+            # Try to create a timezone object to validate
+            pendulum.timezone(v)
+            return v
+        except (ValueError, KeyError) as e:
+            # pendulum raises ValueError or KeyError for invalid timezones
+            raise ValueError(f"Invalid timezone '{v}': {str(e)}")
 
 
 def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
@@ -33,13 +56,52 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         date: Annotated[str, Form()],
         timezone: Annotated[str, Form()],
     ) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
-        feed = Feed.from_form(ounces=ounces, time=time, date=date, timezone=timezone)
-        feed.save(request.app.state.db_path)
+        try:
+            # Validate form data using Pydantic
+            form_data = FeedForm(ounces=ounces, time=time, date=date, timezone=timezone)
 
-        summary = f"Logged {feed.ounces}oz from {feed.datetime.to_day_datetime_string()} ({feed.datetime.timezone}) ({feed.datetime.diff_for_humans()})"
-        return templates.TemplateResponse(
-            request=request, context={"summary": summary}, name="feed_post.html"
-        )
+            # Create feed from validated data
+            feed = Feed.from_form(
+                ounces=form_data.ounces,
+                time=form_data.time,
+                date=form_data.date,
+                timezone=form_data.timezone
+            )
+            feed.save(request.app.state.db_path)
+
+            summary = f"Logged {feed.ounces}oz from {feed.datetime.to_day_datetime_string()} ({feed.datetime.timezone}) ({feed.datetime.diff_for_humans()})"
+            return templates.TemplateResponse(
+                request=request, context={"summary": summary}, name="feed_post.html"
+            )
+        except ValidationError as e:
+            # Handle Pydantic validation errors
+            error_details = []
+            for error in e.errors():
+                field = error.get('loc', [''])[0]
+                msg = error.get('msg', '')
+                error_details.append(f"{field}: {msg}")
+            error_msg = "; ".join(error_details)
+
+            return templates.TemplateResponse(
+                request=request,
+                name="error.html",
+                context={
+                    "error": f"Invalid form data: {error_msg}",
+                    "back_link": "/feed"
+                },
+                status_code=400
+            )
+        except Exception as e:
+            # Handle other errors (e.g., from Feed.from_form or database operations)
+            return templates.TemplateResponse(
+                request=request,
+                name="error.html",
+                context={
+                    "error": f"Error processing feed: {str(e)}",
+                    "back_link": "/feed"
+                },
+                status_code=400
+            )
 
     @app.delete("/feeds/{feed_id}", response_model=None)
     def delete_feed(  # pyright: ignore[reportUnusedFunction]
