@@ -100,7 +100,8 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             )
 
         # Auto-login after registration
-        session_token = create_session(user.id)  # pyright: ignore[reportArgumentType]
+        assert user.id is not None  # User was just created, so ID is guaranteed
+        session_token = create_session(user.id)
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie(key="session", value=session_token, httponly=True)
         return response
@@ -124,7 +125,8 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 context={"error": "Invalid username or password", "user": None}
             )
 
-        session_token = create_session(user.id)  # pyright: ignore[reportArgumentType]
+        assert user.id is not None  # User was authenticated, so ID is guaranteed
+        session_token = create_session(user.id)
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie(key="session", value=session_token, httponly=True)
         return response

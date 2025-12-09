@@ -18,7 +18,8 @@ def hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
     """
     if salt is None:
         salt = secrets.token_hex(16)
-    hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
+    # Use 600,000 iterations as recommended by OWASP 2023 guidelines
+    hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 600000)
     return hashed.hex(), salt
 
 

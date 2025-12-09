@@ -2,16 +2,16 @@
 
 import secrets
 from typing import Callable
-from functools import wraps
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse
+from starlette.responses import Response
 
 from feed_baby.user import User
 
 
 # Simple in-memory session store (in production, use Redis or database)
+# Note: Sessions will not persist across restarts and won't work with multiple instances
 _sessions: dict[str, int] = {}  # session_token -> user_id
 
 
@@ -66,16 +66,3 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         response = await call_next(request)
         return response
-
-
-def require_auth(func: Callable) -> Callable:
-    """Decorator to require authentication for a route.
-    
-    Redirects to login page if user is not authenticated.
-    """
-    @wraps(func)
-    def wrapper(request: Request, *args, **kwargs):
-        if not hasattr(request.state, 'user') or request.state.user is None:
-            return RedirectResponse(url="/login", status_code=303)
-        return func(request, *args, **kwargs)
-    return wrapper

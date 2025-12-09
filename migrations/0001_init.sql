@@ -9,6 +9,7 @@ CREATE TABLE feeds (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     volume_ul INTEGER NOT NULL,
     datetime TEXT NOT NULL,
+    -- user_id is nullable to allow feeds from before authentication was added
     user_id INTEGER REFERENCES users(id)
 );
 
