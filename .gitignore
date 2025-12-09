@@ -212,3 +212,5 @@ __marimo__/
 # feed-baby configuration
 config.toml
 main.db
+
+.gh-token.txt
