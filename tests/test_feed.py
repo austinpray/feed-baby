@@ -84,3 +84,55 @@ def test_feed_multiple_common_values():
         )
         assert feed.volume_ul == expected_microliters, f"Failed for {ounces} oz"
         assert feed.ounces == ounces.quantize(Decimal("0.01"))
+
+
+def test_feed_database_operations(tmp_path):
+    """Test that save(), get_all(), and delete() properly handle database connections."""
+    from migrate import migrate
+
+    # Create temporary database and apply migrations
+    db_path = str(tmp_path / "test.db")
+    migrate(db_path)
+
+    # Test save() - create and save a feed
+    feed1 = Feed.from_form(
+        ounces=Decimal("3.5"),
+        time="14:30",
+        date="2025-12-09",
+        timezone="UTC"
+    )
+    feed1.save(db_path)
+
+    # Test get_all() - retrieve feeds
+    feeds = Feed.get_all(db_path)
+    assert len(feeds) == 1
+    assert feeds[0].ounces == Decimal("3.50")
+    assert feeds[0].datetime.hour == 14
+    assert feeds[0].datetime.minute == 30
+
+    # Save another feed
+    feed2 = Feed.from_form(
+        ounces=Decimal("4.0"),
+        time="18:00",
+        date="2025-12-09",
+        timezone="UTC"
+    )
+    feed2.save(db_path)
+
+    # Verify we now have 2 feeds
+    feeds = Feed.get_all(db_path)
+    assert len(feeds) == 2
+
+    # Test delete() - remove a feed
+    feed_id = feeds[0].id
+    assert feed_id is not None
+    deleted = Feed.delete(feed_id, db_path)
+    assert deleted is True
+
+    # Verify we now have 1 feed
+    feeds = Feed.get_all(db_path)
+    assert len(feeds) == 1
+
+    # Test delete non-existent feed
+    deleted = Feed.delete(9999, db_path)
+    assert deleted is False
