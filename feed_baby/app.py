@@ -21,11 +21,11 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             request=request, name="index.html", context={"feeds": feeds}
         )
 
-    @app.get("/feed", response_class=HTMLResponse)
-    def input_feed(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
+    @app.get("/feeds/new", response_class=HTMLResponse)
+    def new_feed(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
         return templates.TemplateResponse(request=request, name="feed.html")
 
-    @app.post("/feed", response_class=HTMLResponse)
+    @app.post("/feeds", response_class=HTMLResponse)
     def create_feed( # pyright: ignore[reportUnusedFunction]
         request: Request,
         ounces: Annotated[Decimal, Form()],
@@ -41,7 +41,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             request=request, context={"summary": summary}, name="feed_post.html"
         )
 
-    @app.post("/feed/{feed_id}/delete", response_model=None)
+    @app.delete("/feeds/{feed_id}", response_model=None)
     def delete_feed(  # pyright: ignore[reportUnusedFunction]
         request: Request,
         feed_id: int,
