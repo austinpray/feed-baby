@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 import pendulum
 
 from feed_baby.feed import Feed
@@ -13,7 +13,7 @@ from feed_baby.feed import Feed
 class FeedForm(BaseModel):
     """Pydantic model for feed form validation."""
     
-    ounces: Decimal = Field(gt=0, le=10, description="Ounces must be between 0 and 10")
+    ounces: Decimal = Field(gt=0, le=10, description="Ounces must be greater than 0 and less than or equal to 10")
     time: str = Field(pattern=r'^\d{2}:\d{2}$', description="Time must be in HH:mm format")
     date: str = Field(pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date must be in YYYY-MM-DD format")
     timezone: str = Field(min_length=1, description="Timezone is required")
@@ -26,7 +26,8 @@ class FeedForm(BaseModel):
             # Try to create a timezone object to validate
             pendulum.timezone(v)
             return v
-        except Exception as e:
+        except (ValueError, KeyError) as e:
+            # pendulum raises ValueError or KeyError for invalid timezones
             raise ValueError(f"Invalid timezone '{v}': {str(e)}")
 
 
@@ -72,25 +73,31 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             return templates.TemplateResponse(
                 request=request, context={"summary": summary}, name="feed_post.html"
             )
-        except Exception as e:
-            # Handle validation and other errors gracefully
-            error_msg = str(e)
-            # For Pydantic validation errors, extract a user-friendly message
-            if hasattr(e, 'errors'):
-                # Pydantic validation error
-                errors = e.errors()  # type: ignore
-                error_details = []
-                for error in errors:
-                    field = error.get('loc', [''])[0]
-                    msg = error.get('msg', '')
-                    error_details.append(f"{field}: {msg}")
-                error_msg = "; ".join(error_details)
+        except ValidationError as e:
+            # Handle Pydantic validation errors
+            error_details = []
+            for error in e.errors():
+                field = error.get('loc', [''])[0]
+                msg = error.get('msg', '')
+                error_details.append(f"{field}: {msg}")
+            error_msg = "; ".join(error_details)
             
             return templates.TemplateResponse(
                 request=request,
                 name="error.html",
                 context={
                     "error": f"Invalid form data: {error_msg}",
+                    "back_link": "/feed"
+                },
+                status_code=400
+            )
+        except Exception as e:
+            # Handle other errors (e.g., from Feed.from_form or database operations)
+            return templates.TemplateResponse(
+                request=request,
+                name="error.html",
+                context={
+                    "error": f"Error processing feed: {str(e)}",
                     "back_link": "/feed"
                 },
                 status_code=400
