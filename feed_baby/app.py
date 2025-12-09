@@ -1,5 +1,6 @@
 from typing import Annotated
 from decimal import Decimal
+import math
 
 from fastapi import FastAPI, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -17,9 +18,36 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def read_root(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
-        feeds = Feed.get_all(request.app.state.db_path)
+        # Show only the 8 most recent feeds on homepage
+        feeds = Feed.get_all(request.app.state.db_path, limit=8, offset=0)
+        
         return templates.TemplateResponse(
-            request=request, name="index.html", context={"feeds": feeds}
+            request=request, 
+            name="index.html", 
+            context={
+                "feeds": feeds,
+            }
+        )
+
+    @app.get("/feeds", response_class=HTMLResponse)
+    def list_feeds(request: Request, page: int = 1) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
+        page = max(1, page)  # Ensure page is at least 1
+        limit = 50
+        offset = (page - 1) * limit
+        
+        feeds = Feed.get_all(request.app.state.db_path, limit=limit, offset=offset)
+        total_feeds = Feed.count(request.app.state.db_path)
+        total_pages = math.ceil(total_feeds / limit) if total_feeds > 0 else 1
+        
+        return templates.TemplateResponse(
+            request=request, 
+            name="feeds.html", 
+            context={
+                "feeds": feeds,
+                "page": page,
+                "total_pages": total_pages,
+                "total_feeds": total_feeds,
+            }
         )
 
     @app.get("/feeds.ics")
@@ -74,11 +102,11 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 name="error.html",
                 context={
                     "error": f"Feed with ID {feed_id} not found",
-                    "back_link": "/",
-                },
+                    "back_link": "/feeds"
+                }
             )
 
-        # Redirect to home page after successful deletion
-        return RedirectResponse(url="/", status_code=303)
+        # Redirect to feeds page after successful deletion
+        return RedirectResponse(url="/feeds", status_code=303)
 
     return app
