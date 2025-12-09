@@ -47,12 +47,14 @@ class Feed:
         from feed_baby.db import get_connection
 
         conn = get_connection(db_path)
-        conn.execute(
-            "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
-            (self.volume_ul, self.datetime.in_timezone("UTC").to_iso8601_string()),
-        )
-        conn.commit()
-        conn.close()
+        try:
+            with conn:
+                conn.execute(
+                    "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
+                    (self.volume_ul, self.datetime.in_timezone("UTC").to_iso8601_string()),
+                )
+        finally:
+            conn.close()
 
     @classmethod
     def from_form(cls, ounces: Decimal, time: str, date: str, timezone: str) -> Self:
@@ -105,12 +107,14 @@ class Feed:
         from feed_baby.db import get_connection
 
         conn = get_connection(db_path)
-        cursor = conn.execute(
-            "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC"
-        )
-        feeds = [cls.from_db(row) for row in cursor.fetchall()]
-        conn.close()
-        return feeds
+        try:
+            cursor = conn.execute(
+                "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC"
+            )
+            feeds = [cls.from_db(row) for row in cursor.fetchall()]
+            return feeds
+        finally:
+            conn.close()
 
     @classmethod
     def delete(cls, feed_id: int, db_path: str) -> bool:
@@ -126,8 +130,10 @@ class Feed:
         from feed_baby.db import get_connection
 
         conn = get_connection(db_path)
-        cursor = conn.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
-        deleted = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-        return deleted
+        try:
+            with conn:
+                cursor = conn.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
+                deleted = cursor.rowcount > 0
+                return deleted
+        finally:
+            conn.close()
