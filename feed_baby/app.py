@@ -16,7 +16,20 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
     templates = Jinja2Templates(directory="templates")
 
     @app.get("/", response_class=HTMLResponse)
-    def read_root(request: Request, page: int = 1) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
+    def read_root(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
+        # Show only the 8 most recent feeds on homepage
+        feeds = Feed.get_all(request.app.state.db_path, limit=8, offset=0)
+        
+        return templates.TemplateResponse(
+            request=request, 
+            name="index.html", 
+            context={
+                "feeds": feeds,
+            }
+        )
+
+    @app.get("/feeds", response_class=HTMLResponse)
+    def list_feeds(request: Request, page: int = 1) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
         page = max(1, page)  # Ensure page is at least 1
         limit = 50
         offset = (page - 1) * limit
@@ -27,7 +40,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         
         return templates.TemplateResponse(
             request=request, 
-            name="index.html", 
+            name="feeds.html", 
             context={
                 "feeds": feeds,
                 "page": page,
@@ -69,11 +82,11 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 name="error.html",
                 context={
                     "error": f"Feed with ID {feed_id} not found",
-                    "back_link": "/"
+                    "back_link": "/feeds"
                 }
             )
 
-        # Redirect to home page after successful deletion
-        return RedirectResponse(url="/", status_code=303)
+        # Redirect to feeds page after successful deletion
+        return RedirectResponse(url="/feeds", status_code=303)
 
     return app
