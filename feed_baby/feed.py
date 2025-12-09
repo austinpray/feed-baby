@@ -73,13 +73,12 @@ class Feed:
     @classmethod
     def get_feed(cls, feed_id: int, db_path: str) -> Self | None:
         """Get a specific feed by ID."""
-        conn = get_connection(db_path)
-        cursor = conn.execute(
-            "SELECT id, volume_ul, datetime FROM feeds WHERE id = ?",
-            (feed_id,),
-        )
-        row = cursor.fetchone()
-        conn.close()
+        with get_connection(db_path) as conn:
+            cursor = conn.execute(
+                "SELECT id, volume_ul, datetime FROM feeds WHERE id = ?",
+                (feed_id,),
+            )
+            row = cursor.fetchone()
         if row is None:
             return None
         return cls.from_db(row)
@@ -97,10 +96,9 @@ class Feed:
     @classmethod
     def count(cls, db_path: str) -> int:
         """Get total count of feeds."""
-        conn = get_connection(db_path)
-        cursor = conn.execute("SELECT COUNT(*) FROM feeds")
-        count = cursor.fetchone()[0]
-        conn.close()
+        with get_connection(db_path) as conn:
+            cursor = conn.execute("SELECT COUNT(*) FROM feeds")
+            count = cursor.fetchone()[0]
         return count
     
     @classmethod

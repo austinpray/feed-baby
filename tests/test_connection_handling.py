@@ -153,3 +153,75 @@ def test_context_manager_usage(test_db):
     # We can verify by opening another connection successfully
     conn2 = sqlite3.connect(test_db)
     conn2.close()
+
+
+def test_get_feed_closes_connection_on_success(test_db):
+    """Test that get_feed() properly closes connections on success."""
+    # Create a feed
+    feed = Feed.from_form(
+        ounces=Decimal("3.0"),
+        time="12:00",
+        date="2025-12-09",
+        timezone="UTC"
+    )
+    feed.save(test_db)
+    
+    # Get all feeds to find the ID
+    feeds = Feed.get_all(test_db)
+    feed_id = feeds[0].id
+    
+    # Get specific feed
+    retrieved_feed = Feed.get_feed(feed_id, test_db)
+    assert retrieved_feed is not None
+    assert abs(retrieved_feed.ounces - Decimal("3.0")) < Decimal("0.01")
+
+
+def test_get_feed_closes_connection_on_error(test_db):
+    """Test that get_feed() properly closes connections even on error."""
+    # Drop the table to cause an error
+    conn = sqlite3.connect(test_db)
+    conn.execute("DROP TABLE feeds")
+    conn.commit()
+    conn.close()
+    
+    # This should raise an error but not leak connections
+    with pytest.raises(sqlite3.OperationalError):
+        Feed.get_feed(1, test_db)
+    
+    # Verify no connections are leaked
+    conn = sqlite3.connect(test_db)
+    conn.close()
+
+
+def test_count_closes_connection_on_success(test_db):
+    """Test that count() properly closes connections on success."""
+    # Create some feeds
+    for i in range(5):
+        feed = Feed.from_form(
+            ounces=Decimal(str(i + 1)),
+            time="12:00",
+            date="2025-12-09",
+            timezone="UTC"
+        )
+        feed.save(test_db)
+    
+    # Count feeds
+    count = Feed.count(test_db)
+    assert count == 5
+
+
+def test_count_closes_connection_on_error(test_db):
+    """Test that count() properly closes connections even on error."""
+    # Drop the table to cause an error
+    conn = sqlite3.connect(test_db)
+    conn.execute("DROP TABLE feeds")
+    conn.commit()
+    conn.close()
+    
+    # This should raise an error but not leak connections
+    with pytest.raises(sqlite3.OperationalError):
+        Feed.count(test_db)
+    
+    # Verify no connections are leaked
+    conn = sqlite3.connect(test_db)
+    conn.close()
