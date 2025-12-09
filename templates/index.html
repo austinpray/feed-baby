@@ -136,7 +136,7 @@
                     <span class="current">{{ p }}</span>
                 {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
                     <a href="/?page={{ p }}">{{ p }}</a>
-                {% elif p == page - 3 or p == page + 3 %}
+                {% elif (p == page - 3 and page > 4) or (p == page + 3 and page < total_pages - 3) %}
                     <span>...</span>
                 {% endif %}
             {% endfor %}
