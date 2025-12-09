@@ -12,12 +12,12 @@ from feed_baby.feed import Feed
 
 class FeedForm(BaseModel):
     """Pydantic model for feed form validation."""
-    
+
     ounces: Decimal = Field(gt=0, le=10, description="Ounces must be greater than 0 and less than or equal to 10")
     time: str = Field(pattern=r'^\d{2}:\d{2}$', description="Time must be in HH:mm format")
     date: str = Field(pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date must be in YYYY-MM-DD format")
     timezone: str = Field(min_length=1, description="Timezone is required")
-    
+
     @field_validator('timezone')
     @classmethod
     def validate_timezone(cls, v: str) -> str:
@@ -59,7 +59,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         try:
             # Validate form data using Pydantic
             form_data = FeedForm(ounces=ounces, time=time, date=date, timezone=timezone)
-            
+
             # Create feed from validated data
             feed = Feed.from_form(
                 ounces=form_data.ounces,
@@ -81,7 +81,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 msg = error.get('msg', '')
                 error_details.append(f"{field}: {msg}")
             error_msg = "; ".join(error_details)
-            
+
             return templates.TemplateResponse(
                 request=request,
                 name="error.html",

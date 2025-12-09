@@ -70,7 +70,7 @@ def test_valid_ounces_boundary():
         timezone="UTC"
     )
     assert form1.ounces == Decimal("0.01")
-    
+
     # Exactly 10
     form2 = FeedForm(
         ounces=Decimal("10"),
@@ -168,7 +168,7 @@ def test_valid_timezones():
         "Europe/London",
         "Asia/Tokyo",
     ]
-    
+
     for tz in valid_timezones:
         form = FeedForm(
             ounces=Decimal("3.5"),
