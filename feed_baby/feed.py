@@ -38,11 +38,12 @@ class Feed:
         """
         return microliters_to_ounces(self.volume_ul)
 
-    def save(self, db_path: str):
+    def save(self, db_path: str, user_id: int | None = None):
         """Save feed to database.
 
         Args:
             db_path: Path to SQLite database
+            user_id: ID of the user who created the feed (optional)
         """
         from feed_baby.db import get_connection
 
@@ -50,8 +51,8 @@ class Feed:
         try:
             with conn:
                 conn.execute(
-                    "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
-                    (self.volume_ul, self.datetime.in_timezone("UTC").to_iso8601_string()),
+                    "INSERT INTO feeds (volume_ul, datetime, user_id) VALUES (?, ?, ?)",
+                    (self.volume_ul, self.datetime.in_timezone("UTC").to_iso8601_string(), user_id),
                 )
         finally:
             conn.close()

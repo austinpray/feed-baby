@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Feed Baby{% endblock %}
+
+{% block head %}
+    <style>
+        .auth-form,
+        .auth-form input {
+            font-size: large;
+        }
+        .auth-form div {
+            margin-bottom: 0.5em;
+        }
+        .error {
+            color: #d9534f;
+            margin-bottom: 1em;
+        }
+        .auth-links {
+            margin-top: 1em;
+        }
+    </style>
+{% endblock %}
+
+{% block main %}
+    <h1>Register</h1>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form class="auth-form" action="/register" method="post">
+        <div>
+            <label for="username">Username</label>
+            <input type="text" name="username" id="username" required="true" autocomplete="username" />
+        </div>
+        <div>
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" required="true" autocomplete="new-password" />
+        </div>
+        <input type="submit" value="Register" />
+    </form>
+
+    <div class="auth-links">
+        <p>Already have an account? <a href="/login">Login</a></p>
+        <p><a href="/">Back to Home</a></p>
+    </div>
+{% endblock %}
