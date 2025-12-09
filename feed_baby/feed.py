@@ -38,12 +38,12 @@ class Feed:
         """
         return microliters_to_ounces(self.volume_ul)
 
-    def save(self, db_path: str, user_id: int | None = None):
+    def save(self, db_path: str, user_id: int):
         """Save feed to database.
 
         Args:
             db_path: Path to SQLite database
-            user_id: ID of the user who created the feed (optional)
+            user_id: ID of the user who created the feed
         """
         from feed_baby.db import get_connection
 

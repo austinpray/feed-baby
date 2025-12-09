@@ -89,10 +89,16 @@ def test_feed_multiple_common_values():
 def test_feed_database_operations(tmp_path):
     """Test that save(), get_all(), and delete() properly handle database connections."""
     from migrate import migrate
+    from feed_baby.user import User
 
     # Create temporary database and apply migrations
     db_path = str(tmp_path / "test.db")
     migrate(db_path)
+
+    # Create a test user
+    user = User.create(username="testuser", password="testpass", db_path=db_path)
+    assert user is not None
+    assert user.id is not None
 
     # Test save() - create and save a feed
     feed1 = Feed.from_form(
@@ -101,7 +107,7 @@ def test_feed_database_operations(tmp_path):
         date="2025-12-09",
         timezone="UTC"
     )
-    feed1.save(db_path)
+    feed1.save(db_path, user_id=user.id)
 
     # Test get_all() - retrieve feeds
     feeds = Feed.get_all(db_path)
@@ -117,7 +123,7 @@ def test_feed_database_operations(tmp_path):
         date="2025-12-09",
         timezone="UTC"
     )
-    feed2.save(db_path)
+    feed2.save(db_path, user_id=user.id)
 
     # Verify we now have 2 feeds
     feeds = Feed.get_all(db_path)
