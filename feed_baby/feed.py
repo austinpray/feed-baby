@@ -47,14 +47,13 @@ class Feed:
         )
     
     def save(self, db_path: str) -> None:
-        """Save the feed to the database. HAS CONNECTION LEAK!"""
-        conn = get_connection(db_path)
-        conn.execute(
-            "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
-            (self.volume_ul, self.datetime.to_iso8601_string()),
-        )
-        conn.commit()
-        conn.close()  # Won't execute if commit() raises
+        """Save the feed to the database."""
+        with get_connection(db_path) as conn:
+            conn.execute(
+                "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
+                (self.volume_ul, self.datetime.to_iso8601_string()),
+            )
+            conn.commit()
     
     @property
     def display_time(self) -> str:
@@ -87,13 +86,12 @@ class Feed:
     
     @classmethod
     def get_all(cls, db_path: str) -> list[Self]:
-        """Get all feeds, ordered by datetime descending. HAS CONNECTION LEAK!"""
-        conn = get_connection(db_path)
-        cursor = conn.execute(
-            "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC"
-        )
-        feeds = [cls.from_db(row) for row in cursor.fetchall()]
-        conn.close()  # Won't execute if fetchall() raises
+        """Get all feeds, ordered by datetime descending."""
+        with get_connection(db_path) as conn:
+            cursor = conn.execute(
+                "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC"
+            )
+            feeds = [cls.from_db(row) for row in cursor.fetchall()]
         return feeds
     
     @classmethod
@@ -107,9 +105,8 @@ class Feed:
     
     @classmethod
     def delete(cls, feed_id: int, db_path: str) -> bool:
-        """Delete a feed by ID. Returns True if deleted. HAS CONNECTION LEAK!"""
-        conn = get_connection(db_path)
-        cursor = conn.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
-        conn.commit()
-        conn.close()  # Won't execute if commit() raises
+        """Delete a feed by ID. Returns True if deleted."""
+        with get_connection(db_path) as conn:
+            cursor = conn.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
+            conn.commit()
         return cursor.rowcount > 0
