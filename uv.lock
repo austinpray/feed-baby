@@ -200,6 +200,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "lefthook" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
@@ -216,6 +217,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "lefthook", specifier = ">=2.0.9" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "ruff", specifier = ">=0.14.8" },
     { name = "ty", specifier = ">=0.0.1a32" },
@@ -314,6 +316,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d", size = 245115, upload-time = "2025-03-05T20:05:02.478Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
+]
+
+[[package]]
+name = "lefthook"
+version = "2.0.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/54/ef6bf621137849b2e62e2d67acba16cd4f2d97079ed809de1d88e30144b9/lefthook-2.0.9.tar.gz", hash = "sha256:575de0b18e4b3ab576064fea32445c790a4e59a4be1eb0247a4581779651cbb7", size = 51530091, upload-time = "2025-12-08T08:19:16.294Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/a1/68ce24cb0b67bcda4ab91862d6acbe83abc31e6485fb9ca29ec54bc15bb9/lefthook-2.0.9-py3-none-any.whl", hash = "sha256:3cd312d67d8dc7b1d1e68cd5506ea15d6b0c443899db4be3dc72b7216da7b1c9", size = 51778641, upload-time = "2025-12-08T08:19:13.185Z" },
 ]
 
 [[package]]

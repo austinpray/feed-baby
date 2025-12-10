@@ -1,0 +1,14 @@
+# Lefthook configuration for feed-baby
+# Documentation: https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  commands:
+    ruff-check:
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+
+    ty-check:
+      glob: "*.py"
+      run: uv run ty check

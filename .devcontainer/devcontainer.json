@@ -31,7 +31,7 @@
 				"GitHub.vscode-pull-request-github"
 			]
 		}
-	}
+	},
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
@@ -40,5 +40,8 @@
 	// "forwardPorts": [],
 
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "cat /etc/os-release",
+	"postCreateCommand": {
+		// "cc": "curl -fsSL https://claude.ai/install.sh | bash",
+		"lefthook": "uv run lefthook install"
+	}
 }
