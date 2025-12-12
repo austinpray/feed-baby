@@ -1,6 +1,7 @@
 from typing import Annotated
 from decimal import Decimal
 import math
+import logging
 
 from fastapi import FastAPI, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,7 +10,9 @@ from icalendar import Calendar, Event, vDatetime
 
 from feed_baby.feed import Feed
 from feed_baby.user import User
-from feed_baby.auth import AuthMiddleware, create_session, delete_session
+from feed_baby.auth import AuthMiddleware, create_session, delete_session, SessionCreationError
+
+logger = logging.getLogger(__name__)
 
 # Valid redirect targets after login - maps token to URL path
 REDIRECT_TARGETS = {
@@ -217,7 +220,8 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         assert user.id is not None  # User was authenticated, so ID is guaranteed
         try:
             session_id = create_session(user.id, request.app.state.db_path)
-        except Exception:
+        except SessionCreationError as e:
+            logger.error("Session creation failed for user %s: %s", user.id, e)
             return templates.TemplateResponse(
                 request=request,
                 name="error.html",

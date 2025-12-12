@@ -249,3 +249,43 @@ def test_logout(authenticated_client):
     assert response.status_code == 303
     assert response.headers["location"] == "/"
     # Note: TestClient doesn't actually delete cookies, so we can't verify deletion
+
+
+def test_login_session_creation_error(client, monkeypatch, caplog):
+    """Test POST /login handles SessionCreationError and logs it."""
+    from feed_baby.auth import SessionCreationError
+    import logging
+
+    # Register a user first
+    client.post(
+        "/register",
+        data={"username": "sessionerroruser", "password": "testpassword"},
+        follow_redirects=False,
+    )
+
+    # Clear the session cookie set by registration
+    client.cookies.clear()
+
+    # Mock create_session to raise SessionCreationError
+    def mock_create_session(user_id, db_path):
+        raise SessionCreationError("Database connection failed")
+
+    monkeypatch.setattr("feed_baby.app.create_session", mock_create_session)
+
+    # Try to login - should catch SessionCreationError
+    with caplog.at_level(logging.ERROR):
+        response = client.post(
+            "/login",
+            data={"username": "sessionerroruser", "password": "testpassword"},
+            follow_redirects=False,
+        )
+
+    # Should return error page, not crash
+    assert response.status_code == 500
+    assert b"Failed to create session" in response.content
+    assert b"Please try again" in response.content
+
+    # Should log the error
+    assert len(caplog.records) == 1
+    assert "Session creation failed" in caplog.records[0].message
+    assert "Database connection failed" in caplog.records[0].message
