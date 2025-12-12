@@ -58,9 +58,9 @@ def test_delete_feeds_success(client):
     # Use follow_redirects=False to check redirect status code
     response = client.delete("/feeds/1", follow_redirects=False)
 
-    # Should redirect with 303
+    # Should redirect with 303 to /feeds
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/feeds"
 
 
 def test_delete_feeds_not_found(client):
