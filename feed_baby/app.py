@@ -19,9 +19,10 @@ REDIRECT_TARGETS = {
 }
 
 
-def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
-    # Store db_path in app state for routes to access
+def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -> FastAPI:
+    # Store db_path and secure_cookies in app state for routes to access
     app.state.db_path = db_path
+    app.state.secure_cookies = secure_cookies
 
     # Add authentication middleware
     # Note: type: ignore[arg-type] is needed due to a known issue with Starlette's
@@ -187,7 +188,11 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             )
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie(
-            key="session_id", value=session_id, httponly=True, samesite="Lax", secure=True
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            samesite="Lax",
+            secure=request.app.state.secure_cookies,
         )
         return response
 
@@ -234,7 +239,11 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         redirect_target = REDIRECT_TARGETS.get(next or "", "/")
         response = RedirectResponse(url=redirect_target, status_code=303)
         response.set_cookie(
-            key="session_id", value=session_id, httponly=True, samesite="Lax", secure=True
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            samesite="Lax",
+            secure=request.app.state.secure_cookies,
         )
         return response
 
@@ -245,7 +254,9 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             delete_session(session_id, request.app.state.db_path)
 
         response = RedirectResponse(url="/", status_code=303)
-        response.delete_cookie(key="session_id", samesite="Lax", secure=True)
+        response.delete_cookie(
+            key="session_id", samesite="Lax", secure=request.app.state.secure_cookies
+        )
         return response
 
     return app
