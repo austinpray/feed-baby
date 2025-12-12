@@ -11,6 +11,13 @@ from feed_baby.feed import Feed
 from feed_baby.user import User
 from feed_baby.auth import AuthMiddleware, create_session, delete_session
 
+# Valid redirect targets after login - maps token to URL path
+REDIRECT_TARGETS = {
+    "feeds_new": "/feeds/new",
+    "feeds_list": "/feeds",
+    "home": "/",
+}
+
 
 def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
     # Store db_path in app state for routes to access
@@ -82,8 +89,10 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         return Response(content=ical_data, media_type="text/calendar")
 
     @app.get("/feeds/new", response_class=HTMLResponse)
-    def new_feed(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
+    def new_feed(request: Request) -> HTMLResponse | RedirectResponse:  # pyright: ignore[reportUnusedFunction]
         user = getattr(request.state, "user", None)
+        if not user:
+            return RedirectResponse(url="/login?next=feeds_new", status_code=303)
         return templates.TemplateResponse(
             request=request, name="feed.html", context={"user": user}
         )
@@ -99,7 +108,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         # Require authentication for creating feeds
         user = getattr(request.state, "user", None)
         if not user:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/login?next=feeds_new", status_code=303)
 
         feed = Feed.from_form(
             ounces=ounces, time=time, date=date, timezone=timezone, user_id=user.id
@@ -119,7 +128,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         # Require authentication for deleting feeds
         user = getattr(request.state, "user", None)
         if not user:
-            return RedirectResponse(url="/login", status_code=303)
+            return RedirectResponse(url="/login?next=feeds_list", status_code=303)
 
         deleted = Feed.delete(feed_id, request.app.state.db_path)
 
@@ -183,8 +192,9 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
     @app.get("/login", response_class=HTMLResponse)
     def get_login(request: Request) -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
         user = getattr(request.state, "user", None)
+        next_param = request.query_params.get("next")
         return templates.TemplateResponse(
-            request=request, name="login.html", context={"user": user}
+            request=request, name="login.html", context={"user": user, "next": next_param}
         )
 
     @app.post("/login", response_model=None)
@@ -192,6 +202,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         request: Request,
         username: Annotated[str, Form()],
         password: Annotated[str, Form()],
+        next: Annotated[str | None, Form()] = None,
     ) -> Response:
         user = User.authenticate(
             username=username, password=password, db_path=request.app.state.db_path
@@ -200,7 +211,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             return templates.TemplateResponse(
                 request=request,
                 name="login.html",
-                context={"error": "Invalid username or password", "user": None},
+                context={"error": "Invalid username or password", "user": None, "next": next},
             )
 
         assert user.id is not None  # User was authenticated, so ID is guaranteed
@@ -217,7 +228,9 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 },
                 status_code=500,
             )
-        response = RedirectResponse(url="/", status_code=303)
+        # Determine safe redirect target using server-side mapping
+        redirect_target = REDIRECT_TARGETS.get(next or "", "/")
+        response = RedirectResponse(url=redirect_target, status_code=303)
         response.set_cookie(key="session_id", value=session_id, httponly=True)
         return response
 

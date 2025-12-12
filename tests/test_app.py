@@ -48,9 +48,16 @@ def authenticated_client(tmp_path):
     return client
 
 
-def test_get_feeds_new_form(client):
-    """Test GET /feeds/new returns feed form."""
-    response = client.get("/feeds/new")
+def test_get_feeds_new_requires_auth(client):
+    """Test GET /feeds/new redirects to login when unauthenticated."""
+    response = client.get("/feeds/new", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login?next=feeds_new"
+
+
+def test_get_feeds_new_form_authenticated(authenticated_client):
+    """Test GET /feeds/new returns feed form when authenticated."""
+    response = authenticated_client.get("/feeds/new")
     assert response.status_code == 200
     assert b"Log a feed" in response.content
 
@@ -83,7 +90,7 @@ def test_post_feeds_requires_auth(client):
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert response.headers["location"] == "/login"
+    assert response.headers["location"] == "/login?next=feeds_new"
 
 
 def test_delete_feeds_success(authenticated_client):
@@ -112,7 +119,64 @@ def test_delete_feeds_requires_auth(client):
     """Test DELETE /feeds/{id} redirects to login when not authenticated."""
     response = client.delete("/feeds/1", follow_redirects=False)
     assert response.status_code == 303
-    assert response.headers["location"] == "/login"
+    assert response.headers["location"] == "/login?next=feeds_list"
+
+
+def test_login_next_param_redirect(client):
+    """Test that login honors next parameter and redirects safely using tokens."""
+    # Register a user first
+    client.post(
+        "/register",
+        data={"username": "loginuser2", "password": "loginpassword2"},
+        follow_redirects=False,
+    )
+
+    # Clear auto-login cookie from registration
+    client.cookies.clear()
+
+    # Request login page with next token
+    get_resp = client.get("/login?next=feeds_new")
+    assert get_resp.status_code == 200
+    assert b"name=\"next\"" in get_resp.content
+
+    # Post login with valid token, expect redirect to mapped path
+    post_resp = client.post(
+        "/login",
+        data={"username": "loginuser2", "password": "loginpassword2", "next": "feeds_new"},
+        follow_redirects=False,
+    )
+    assert post_resp.status_code == 303
+    assert post_resp.headers["location"] == "/feeds/new"
+
+    # Ensure invalid token is rejected (redirects to / home)
+    client.cookies.clear()
+    post_resp2 = client.post(
+        "/login",
+        data={"username": "loginuser2", "password": "loginpassword2", "next": "invalid_token"},
+        follow_redirects=False,
+    )
+    assert post_resp2.status_code == 303
+    assert post_resp2.headers["location"] == "/"
+
+    # Ensure URL path is rejected (not a valid token)
+    client.cookies.clear()
+    post_resp3 = client.post(
+        "/login",
+        data={"username": "loginuser2", "password": "loginpassword2", "next": "/feeds/new"},
+        follow_redirects=False,
+    )
+    assert post_resp3.status_code == 303
+    assert post_resp3.headers["location"] == "/"
+
+    # Ensure external URL is rejected (not a valid token)
+    client.cookies.clear()
+    post_resp4 = client.post(
+        "/login",
+        data={"username": "loginuser2", "password": "loginpassword2", "next": "https://evil.com"},
+        follow_redirects=False,
+    )
+    assert post_resp4.status_code == 303
+    assert post_resp4.headers["location"] == "/"
 
 
 def test_delete_feeds_not_found(authenticated_client):

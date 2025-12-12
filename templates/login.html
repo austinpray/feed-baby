@@ -37,6 +37,9 @@
             <label for="password">Password</label>
             <input type="password" name="password" id="password" required autocomplete="current-password" />
         </div>
+        {% if next %}
+        <input type="hidden" name="next" value="{{ next }}" />
+        {% endif %}
         <input type="submit" value="Login" />
     </form>
 
