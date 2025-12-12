@@ -91,7 +91,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
 
         return Response(content=ical_data, media_type="text/calendar")
 
-    @app.get("/feeds/new", response_class=HTMLResponse)
+    @app.get("/feeds/new", response_model=None)
     def new_feed(request: Request) -> HTMLResponse | RedirectResponse:  # pyright: ignore[reportUnusedFunction]
         user = getattr(request.state, "user", None)
         if not user:

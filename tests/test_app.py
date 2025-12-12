@@ -243,6 +243,74 @@ def test_login_invalid_credentials(client):
     assert b"Invalid username or password" in response.content
 
 
+def test_login_empty_username(client):
+    """Test POST /login returns 422 for empty username (validation error)."""
+    response = client.post("/login", data={"username": "", "password": "somepassword"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "username"]
+    assert response.json()["detail"][0]["type"] == "missing"
+
+
+def test_login_empty_password(client):
+    """Test POST /login returns 422 for empty password (validation error)."""
+    response = client.post("/login", data={"username": "someuser", "password": ""})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "password"]
+    assert response.json()["detail"][0]["type"] == "missing"
+
+
+def test_login_empty_username_and_password(client):
+    """Test POST /login returns 422 for both username and password empty."""
+    response = client.post("/login", data={"username": "", "password": ""})
+    assert response.status_code == 422
+    # Should have errors for both fields
+    error_locs = [error["loc"] for error in response.json()["detail"]]
+    assert ["body", "username"] in error_locs
+    assert ["body", "password"] in error_locs
+
+
+def test_login_missing_username(client):
+    """Test POST /login returns 422 when username field is missing."""
+    response = client.post("/login", data={"password": "somepassword"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "username"]
+    assert response.json()["detail"][0]["type"] == "missing"
+
+
+def test_login_missing_password(client):
+    """Test POST /login returns 422 when password field is missing."""
+    response = client.post("/login", data={"username": "someuser"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "password"]
+    assert response.json()["detail"][0]["type"] == "missing"
+
+
+def test_login_whitespace_only_username(client):
+    """Test POST /login handles whitespace-only username gracefully."""
+    # Whitespace-only username will pass validation but fail authentication
+    response = client.post("/login", data={"username": "   ", "password": "somepassword"})
+    assert response.status_code == 200
+    assert b"Invalid username or password" in response.content
+
+
+def test_login_whitespace_only_password(client):
+    """Test POST /login handles whitespace-only password gracefully."""
+    # Register a user first so username exists
+    client.post(
+        "/register",
+        data={"username": "testwhitespace", "password": "validpassword"},
+        follow_redirects=False,
+    )
+    client.cookies.clear()
+
+    # Try logging in with whitespace-only password
+    response = client.post(
+        "/login", data={"username": "testwhitespace", "password": "   "}
+    )
+    assert response.status_code == 200
+    assert b"Invalid username or password" in response.content
+
+
 def test_logout(authenticated_client):
     """Test POST /logout clears session."""
     response = authenticated_client.post("/logout", follow_redirects=False)
