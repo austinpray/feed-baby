@@ -186,7 +186,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
                 status_code=500,
             )
         response = RedirectResponse(url="/", status_code=303)
-        response.set_cookie(key="session_id", value=session_id, httponly=True)
+        response.set_cookie(key="session_id", value=session_id, httponly=True, samesite="Lax")
         return response
 
     @app.get("/login", response_class=HTMLResponse)
@@ -231,7 +231,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
         # Determine safe redirect target using server-side mapping
         redirect_target = REDIRECT_TARGETS.get(next or "", "/")
         response = RedirectResponse(url=redirect_target, status_code=303)
-        response.set_cookie(key="session_id", value=session_id, httponly=True)
+        response.set_cookie(key="session_id", value=session_id, httponly=True, samesite="Lax")
         return response
 
     @app.post("/logout")
