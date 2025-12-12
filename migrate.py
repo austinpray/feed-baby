@@ -1,6 +1,5 @@
 """Simple SQLite migration system with automatic discovery."""
 
-import sqlite3
 from pathlib import Path
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
@@ -12,7 +11,10 @@ def migrate(db_path: str):
     Args:
         db_path: Path to the SQLite database file
     """
-    conn = sqlite3.connect(db_path)
+    # Use get_connection for consistency with application code
+    from feed_baby.db import get_connection
+
+    conn = get_connection(db_path)
     current_version = conn.execute("PRAGMA user_version").fetchone()[0]
 
     # Discover and sort migration files
