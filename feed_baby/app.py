@@ -196,7 +196,7 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
             key="session_id",
             value=session_id,
             httponly=True,
-            samesite="Lax",
+            samesite="lax",
             secure=request.app.state.secure_cookies,
         )
         return response
@@ -248,7 +248,7 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
             key="session_id",
             value=session_id,
             httponly=True,
-            samesite="Lax",
+            samesite="lax",
             secure=request.app.state.secure_cookies,
         )
         return response
@@ -261,7 +261,7 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
 
         response = RedirectResponse(url="/", status_code=303)
         response.delete_cookie(
-            key="session_id", samesite="Lax", secure=request.app.state.secure_cookies
+            key="session_id", samesite="lax", secure=request.app.state.secure_cookies
         )
         return response
 
