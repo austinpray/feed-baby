@@ -179,7 +179,8 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
         try:
             session_id = create_session(user.id, request.app.state.db_path)
         except SessionCreationError as e:
-            logger.error("Failed to create session after registration for user %s: %s", user.username, e)
+            sanitized_username = user.username.replace('\n', '').replace('\r', '')
+            logger.error("Failed to create session after registration for user %s: %s", sanitized_username, e)
             return templates.TemplateResponse(
                 request=request,
                 name="error.html",
