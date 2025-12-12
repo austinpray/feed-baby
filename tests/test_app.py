@@ -1,8 +1,12 @@
 """Integration tests for HTTP endpoints."""
 
+import logging
+
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 import pytest
+
+from feed_baby.auth import SessionCreationError
 
 
 @pytest.fixture
@@ -253,9 +257,6 @@ def test_logout(authenticated_client):
 
 def test_login_session_creation_error(client, monkeypatch, caplog):
     """Test POST /login handles SessionCreationError and logs it."""
-    from feed_baby.auth import SessionCreationError
-    import logging
-
     # Register a user first
     client.post(
         "/register",
