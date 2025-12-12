@@ -302,7 +302,7 @@ def test_login_whitespace_only_password(client):
         follow_redirects=False,
     )
     client.cookies.clear()
-    
+
     # Try logging in with whitespace-only password
     response = client.post(
         "/login", data={"username": "testwhitespace", "password": "   "}
