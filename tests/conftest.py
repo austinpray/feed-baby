@@ -31,8 +31,7 @@ def e2e_db_path():
 def reset_database(e2e_db_path: str):  # type: ignore[no-untyped-def]
     """Delete and recreate database before each test.
     
-    This ensures each test has a clean database state. The final database
-    deletion after the last test happens via this fixture automatically.
+    This ensures each test has a clean database state.
     """
     # Delete database before test
     if os.path.exists(e2e_db_path):
