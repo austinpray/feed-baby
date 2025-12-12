@@ -16,20 +16,27 @@ class Feed:
     id: int | None  # Database ID (None if not yet saved)
     volume_ul: int  # Volume in microliters
     datetime: pendulum.DateTime
+    user_id: int  # User who created the feed
 
     def __init__(
-        self, volume_ul: int, datetime: pendulum.DateTime, id: int | None = None
+        self,
+        volume_ul: int,
+        datetime: pendulum.DateTime,
+        user_id: int,
+        id: int | None = None,
     ):
-        """Initialize Feed with microliters and datetime.
+        """Initialize Feed with microliters, datetime, and user_id.
 
         Args:
             volume_ul: Volume in microliters
             datetime: When the feeding occurred
+            user_id: ID of the user who created the feed
             id: Database ID (optional, None if not yet saved)
         """
         self.id = id
         self.volume_ul = volume_ul
         self.datetime = datetime
+        self.user_id = user_id
 
     @property
     def ounces(self) -> Decimal:
@@ -40,11 +47,12 @@ class Feed:
         """
         return microliters_to_ounces(self.volume_ul)
 
-    def save(self, db_path: str):
+    def save(self, db_path: str, user_id: int):
         """Save feed to database.
 
         Args:
             db_path: Path to SQLite database
+            user_id: ID of the user creating the feed
         """
         from feed_baby.db import get_connection
 
@@ -52,17 +60,20 @@ class Feed:
         try:
             with conn:
                 conn.execute(
-                    "INSERT INTO feeds (volume_ul, datetime) VALUES (?, ?)",
+                    "INSERT INTO feeds (volume_ul, datetime, user_id) VALUES (?, ?, ?)",
                     (
                         self.volume_ul,
                         self.datetime.in_timezone("UTC").to_iso8601_string(),
+                        user_id,
                     ),
                 )
         finally:
             conn.close()
 
     @classmethod
-    def from_form(cls, ounces: Decimal, time: str, date: str, timezone: str) -> Self:
+    def from_form(
+        cls, ounces: Decimal, time: str, date: str, timezone: str, user_id: int
+    ) -> Self:
         """Create Feed from form input (ounces-based).
 
         Args:
@@ -70,6 +81,7 @@ class Feed:
             time: Time string in HH:mm format
             date: Date string in YYYY-MM-DD format
             timezone: IANA timezone identifier
+            user_id: ID of the user creating the feed
 
         Returns:
             Feed instance with volume converted to microliters
@@ -78,7 +90,7 @@ class Feed:
             f"{date}T{time}", "YYYY-MM-DDTHH:mm", tz=timezone
         )
         volume_ul = ounces_to_microliters(ounces)
-        return cls(volume_ul, datetime)
+        return cls(volume_ul, datetime, user_id)
 
     @classmethod
     def from_db(cls, row: sqlite3.Row) -> Self:
@@ -93,7 +105,12 @@ class Feed:
         datetime_parsed = pendulum.parse(row["datetime"])
         if not isinstance(datetime_parsed, pendulum.DateTime):
             raise ValueError(f"Expected DateTime, got {type(datetime_parsed)}")
-        return cls(volume_ul=row["volume_ul"], datetime=datetime_parsed, id=row["id"])
+        return cls(
+            volume_ul=row["volume_ul"],
+            datetime=datetime_parsed,
+            user_id=row["user_id"],
+            id=row["id"],
+        )
 
     @classmethod
     def get_all(cls, db_path: str, limit: int = 50, offset: int = 0) -> list[Self]:
@@ -112,8 +129,8 @@ class Feed:
         conn = get_connection(db_path)
         try:
             cursor = conn.execute(
-                "SELECT id, volume_ul, datetime FROM feeds ORDER BY datetime DESC LIMIT ? OFFSET ?",
-                (limit, offset)
+                "SELECT id, volume_ul, datetime, user_id FROM feeds ORDER BY datetime DESC LIMIT ? OFFSET ?",
+                (limit, offset),
             )
             feeds = [cls.from_db(row) for row in cursor.fetchall()]
             return feeds
