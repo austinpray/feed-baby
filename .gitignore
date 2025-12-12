@@ -211,6 +211,13 @@ __marimo__/
 
 # feed-baby configuration
 config.toml
+
+# SQLite database files (development and testing)
+*.db
+*.db-shm
+*.db-wal
 main.db
+e2e.db
+test.db
 
 .gh-token.txt

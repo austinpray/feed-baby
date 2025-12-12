@@ -13,9 +13,11 @@ def test_feed_creation_from_form():
         time="14:30",
         date="2025-12-09",
         timezone="America/New_York",
+        user_id=1,
     )
     assert feed.volume_ul == 103507  # 3.5 oz in microliters
     assert feed.ounces == Decimal("3.50")
+    assert feed.user_id == 1
 
 
 def test_feed_ounces_property():
@@ -23,6 +25,7 @@ def test_feed_ounces_property():
     feed = Feed(
         volume_ul=88721,  # 3.0 oz
         datetime=pendulum.now(),
+        user_id=1,
     )
     assert feed.ounces == Decimal("3.00")
 
@@ -32,6 +35,7 @@ def test_feed_ounces_property_fractional():
     feed = Feed(
         volume_ul=96114,  # 3.25 oz
         datetime=pendulum.now(),
+        user_id=1,
     )
     assert feed.ounces == Decimal("3.25")
 
@@ -42,8 +46,12 @@ def test_feed_from_db():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("CREATE TABLE feeds (id INTEGER, volume_ul INTEGER, datetime TEXT)")
-    cursor.execute("INSERT INTO feeds VALUES (1, 96114, '2025-12-09T14:30:00+00:00')")
+    cursor.execute(
+        "CREATE TABLE feeds (id INTEGER, volume_ul INTEGER, datetime TEXT, user_id INTEGER)"
+    )
+    cursor.execute(
+        "INSERT INTO feeds VALUES (1, 96114, '2025-12-09T14:30:00+00:00', 42)"
+    )
     row = cursor.execute("SELECT * FROM feeds").fetchone()
     conn.close()
 
@@ -51,6 +59,7 @@ def test_feed_from_db():
     assert feed.volume_ul == 96114
     assert feed.ounces == Decimal("3.25")
     assert feed.id == 1
+    assert feed.user_id == 42
 
 
 def test_feed_datetime_parsing():
@@ -60,6 +69,7 @@ def test_feed_datetime_parsing():
         time="09:15",
         date="2025-12-09",
         timezone="America/Los_Angeles",
+        user_id=1,
     )
     assert feed.datetime.timezone.name == "America/Los_Angeles"
     assert feed.datetime.hour == 9
@@ -80,7 +90,7 @@ def test_feed_multiple_common_values():
 
     for ounces, expected_microliters in test_cases:
         feed = Feed.from_form(
-            ounces=ounces, time="12:00", date="2025-12-09", timezone="UTC"
+            ounces=ounces, time="12:00", date="2025-12-09", timezone="UTC", user_id=1
         )
         assert feed.volume_ul == expected_microliters, f"Failed for {ounces} oz"
         assert feed.ounces == ounces.quantize(Decimal("0.01"))
@@ -89,16 +99,26 @@ def test_feed_multiple_common_values():
 def test_feed_database_operations(tmp_path):
     """Test that save(), get_all(), and delete() properly handle database connections."""
     from migrate import migrate
+    from feed_baby.user import User
 
     # Create temporary database and apply migrations
     db_path = str(tmp_path / "test.db")
     migrate(db_path)
 
+    # Create a test user
+    user = User.create(username="testuser", password="testpass", db_path=db_path)
+    assert user is not None
+    assert user.id is not None
+
     # Test save() - create and save a feed
     feed1 = Feed.from_form(
-        ounces=Decimal("3.5"), time="14:30", date="2025-12-09", timezone="UTC"
+        ounces=Decimal("3.5"),
+        time="14:30",
+        date="2025-12-09",
+        timezone="UTC",
+        user_id=user.id,
     )
-    feed1.save(db_path)
+    feed1.save(db_path, user.id)
 
     # Test get_all() - retrieve feeds
     feeds = Feed.get_all(db_path)
@@ -106,12 +126,17 @@ def test_feed_database_operations(tmp_path):
     assert feeds[0].ounces == Decimal("3.50")
     assert feeds[0].datetime.hour == 14
     assert feeds[0].datetime.minute == 30
+    assert feeds[0].user_id == user.id
 
     # Save another feed
     feed2 = Feed.from_form(
-        ounces=Decimal("4.0"), time="18:00", date="2025-12-09", timezone="UTC"
+        ounces=Decimal("4.0"),
+        time="18:00",
+        date="2025-12-09",
+        timezone="UTC",
+        user_id=user.id,
     )
-    feed2.save(db_path)
+    feed2.save(db_path, user.id)
 
     # Verify we now have 2 feeds
     feeds = Feed.get_all(db_path)
@@ -135,10 +160,16 @@ def test_feed_database_operations(tmp_path):
 def test_feed_pagination(tmp_path):
     """Test that get_all() pagination works correctly."""
     from migrate import migrate
+    from feed_baby.user import User
 
     # Create temporary database and apply migrations
     db_path = str(tmp_path / "test.db")
     migrate(db_path)
+
+    # Create a test user
+    user = User.create(username="testuser", password="testpass", db_path=db_path)
+    assert user is not None
+    assert user.id is not None
 
     # Create 25 test feeds
     for i in range(25):
@@ -146,9 +177,10 @@ def test_feed_pagination(tmp_path):
             ounces=Decimal("3.0"),
             time=f"{i % 24:02d}:00",
             date="2025-12-09",
-            timezone="UTC"
+            timezone="UTC",
+            user_id=user.id,
         )
-        feed.save(db_path)
+        feed.save(db_path, user.id)
 
     # Test default limit (50) returns all 25
     feeds = Feed.get_all(db_path)
@@ -162,7 +194,7 @@ def test_feed_pagination(tmp_path):
     feeds_page1 = Feed.get_all(db_path, limit=10, offset=0)
     feeds_page2 = Feed.get_all(db_path, limit=10, offset=10)
     feeds_page3 = Feed.get_all(db_path, limit=10, offset=20)
-    
+
     assert len(feeds_page1) == 10
     assert len(feeds_page2) == 10
     assert len(feeds_page3) == 5  # Only 5 remaining
@@ -175,10 +207,16 @@ def test_feed_pagination(tmp_path):
 def test_feed_count(tmp_path):
     """Test that count() returns correct total."""
     from migrate import migrate
+    from feed_baby.user import User
 
     # Create temporary database and apply migrations
     db_path = str(tmp_path / "test.db")
     migrate(db_path)
+
+    # Create a test user
+    user = User.create(username="testuser", password="testpass", db_path=db_path)
+    assert user is not None
+    assert user.id is not None
 
     # Count should be 0 initially
     assert Feed.count(db_path) == 0
@@ -189,9 +227,10 @@ def test_feed_count(tmp_path):
             ounces=Decimal("3.0"),
             time="12:00",
             date="2025-12-09",
-            timezone="UTC"
+            timezone="UTC",
+            user_id=user.id,
         )
-        feed.save(db_path)
+        feed.save(db_path, user.id)
 
     assert Feed.count(db_path) == 10
 
