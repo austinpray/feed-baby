@@ -241,7 +241,7 @@ def bootstrap_server(app: FastAPI, db_path: str) -> FastAPI:
             delete_session(session_id, request.app.state.db_path)
 
         response = RedirectResponse(url="/", status_code=303)
-        response.delete_cookie(key="session_id")
+        response.delete_cookie(key="session_id", httponly=True, samesite="Lax")
         return response
 
     return app
