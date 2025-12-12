@@ -71,6 +71,7 @@ def test_feed_datetime_parsing():
         timezone="America/Los_Angeles",
         user_id=1,
     )
+    assert feed.datetime.timezone is not None
     assert feed.datetime.timezone.name == "America/Los_Angeles"
     assert feed.datetime.hour == 9
     assert feed.datetime.minute == 15
@@ -236,5 +237,6 @@ def test_feed_count(tmp_path):
 
     # Delete a feed and verify count decreases
     feeds = Feed.get_all(db_path)
+    assert feeds[0].id is not None
     Feed.delete(feeds[0].id, db_path)
     assert Feed.count(db_path) == 9
