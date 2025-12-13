@@ -59,7 +59,7 @@ class Feed:
         conn = get_connection(db_path)
         try:
             with conn:
-                conn.execute(
+                cursor = conn.execute(
                     "INSERT INTO feeds (volume_ul, datetime, user_id) VALUES (?, ?, ?)",
                     (
                         self.volume_ul,
@@ -67,6 +67,7 @@ class Feed:
                         user_id,
                     ),
                 )
+                self.id = cursor.lastrowid
         finally:
             conn.close()
 

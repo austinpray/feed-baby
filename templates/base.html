@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if user %}
+    <meta name="csrf-token" content="{{ request.state.csrf_token }}">
+    {% endif %}
     <title>{% block title %}Feed Baby{% endblock %}</title>
     <style>
         /* Table styling for feeds display */
@@ -69,9 +72,7 @@
             {% if user %}
                 <span>{{ user.username }}</span>
                 |
-                <form action="/logout" method="post" style="display: inline; margin: 0;">
-                    <button type="submit" style="background: none; border: none; color: blue; cursor: pointer; text-decoration: underline;">Logout</button>
-                </form>
+                <button id="logout-btn" style="background: none; border: none; color: blue; cursor: pointer; text-decoration: underline;">Logout</button>
             {% else %}
                 <a href="/login">Login</a>
                 |
@@ -81,6 +82,26 @@
     </nav>
     {% block main %}{% endblock %}
     <script>
+        // CSRF utilities
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : null;
+        }
+
+        function csrfFetch(url, options = {}) {
+            const token = getCsrfToken();
+            const headers = options.headers || {};
+
+            if (token) {
+                headers['X-CSRFToken'] = token;
+            }
+
+            return fetch(url, {
+                ...options,
+                headers: headers,
+            });
+        }
+
         // Convert all timestamps to local timezone
         document.querySelectorAll('.feed-datetime').forEach(function(element) {
             const utcDate = new Date(element.getAttribute('datetime'));
@@ -93,7 +114,7 @@
                 return;
             }
 
-            fetch(`/feeds/${feedId}`, {
+            csrfFetch(`/feeds/${feedId}`, {
                 method: 'DELETE',
             })
             .then(response => {
@@ -103,6 +124,8 @@
                 } else if (response.ok) {
                     // Fallback: manually redirect on success
                     window.location.href = '/feeds';
+                } else if (response.status === 403) {
+                    alert('CSRF validation failed. Please refresh and try again.');
                 } else if (response.status === 404) {
                     alert('Feed not found');
                 } else {
@@ -112,6 +135,31 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert('Network error deleting feed');
+            });
+        }
+
+        // Logout handler
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                csrfFetch('/logout', {
+                    method: 'POST',
+                })
+                .then(response => {
+                    if (response.redirected || response.ok) {
+                        window.location.href = '/';
+                    } else if (response.status === 403) {
+                        alert('CSRF validation failed. Please refresh and try again.');
+                    } else {
+                        alert('Logout failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Network error during logout');
+                });
             });
         }
     </script>

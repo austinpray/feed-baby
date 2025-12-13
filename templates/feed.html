@@ -45,11 +45,39 @@
         const day = String(now.getDate()).padStart(2, '0');
         document.getElementById('date').value = `${year}-${month}-${day}`;
         document.getElementById('time').value = now.toTimeString().slice(0, 5);
+        document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+        // Convert form submission to fetch with CSRF token
         document.getElementById('feed').addEventListener('submit', function (e) {
+            e.preventDefault();
+
             if (ounces.value) {
                 window.localStorage.setItem(previousOuncesKey, ounces.value);
             }
-        })
-        document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+            const formData = new FormData(this);
+
+            csrfFetch('/feeds', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else if (response.status === 403) {
+                    throw new Error('CSRF validation failed');
+                } else {
+                    throw new Error('Failed to create feed');
+                }
+            })
+            .then(data => {
+                // Redirect to feeds page with created feed ID
+                window.location.href = '/feeds?created=' + data.feed_id;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating feed: ' + error.message);
+            });
+        });
     </script>
 {% endblock %}

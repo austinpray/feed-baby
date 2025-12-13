@@ -4,13 +4,14 @@ import math
 import logging
 
 from fastapi import FastAPI, Request, Form, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from icalendar import Calendar, Event, vDatetime
 
 from feed_baby.feed import Feed
 from feed_baby.user import User
 from feed_baby.auth import AuthMiddleware, create_session, delete_session, SessionCreationError
+from feed_baby.csrf import CSRFMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,14 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
     app.state.db_path = db_path
     app.state.secure_cookies = secure_cookies
 
-    # Add authentication middleware
     # Note: type: ignore[arg-type] is needed due to a known issue with Starlette's
     # middleware typing in the ty type checker. See:
     # https://github.com/astral-sh/ty/issues/1635
+
+    # Add CSRF middleware (order no longer matters due to session caching)
+    app.add_middleware(CSRFMiddleware)  # type: ignore[arg-type]
+
+    # Add authentication middleware (order no longer matters due to session caching)
     app.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
 
     templates = Jinja2Templates(directory="templates")
@@ -60,6 +65,7 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
         total_feeds = Feed.count(request.app.state.db_path)
         total_pages = math.ceil(total_feeds / limit) if total_feeds > 0 else 1
         user = getattr(request.state, "user", None)
+        created = request.query_params.get("created")
 
         return templates.TemplateResponse(
             request=request,
@@ -70,6 +76,7 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
                 "total_pages": total_pages,
                 "total_feeds": total_feeds,
                 "user": user,
+                "created": created,
             },
         )
 
@@ -119,9 +126,8 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
         )
         feed.save(request.app.state.db_path, user.id)
 
-        summary = f"Logged {feed.ounces}oz from {feed.datetime.to_day_datetime_string()} ({feed.datetime.timezone}) ({feed.datetime.diff_for_humans()})"
-        return templates.TemplateResponse(
-            request=request, context={"summary": summary, "user": user}, name="feed_post.html"
+        return JSONResponse(
+            content={"success": True, "feed_id": feed.id}
         )
 
     @app.delete("/feeds/{feed_id}", response_model=None)
@@ -168,16 +174,15 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
             username=username, password=password, db_path=request.app.state.db_path
         )
         if not user:
-            return templates.TemplateResponse(
-                request=request,
-                name="register.html",
-                context={"error": "Username already exists", "user": None},
+            return JSONResponse(
+                status_code=409,  # Conflict
+                content={"error": "Username already exists"},
             )
 
         # Auto-login after registration
         assert user.id is not None  # User was just created, so ID is guaranteed
         try:
-            session_id = create_session(user.id, request.app.state.db_path)
+            session_id, csrf_token = create_session(user.id, request.app.state.db_path)
         except SessionCreationError as e:
             sanitized_username = user.username.replace('\n', '').replace('\r', '')
             logger.error("Failed to create session after registration for user %s: %s", sanitized_username, e)
@@ -220,15 +225,14 @@ def bootstrap_server(app: FastAPI, db_path: str, secure_cookies: bool = False) -
             username=username, password=password, db_path=request.app.state.db_path
         )
         if not user:
-            return templates.TemplateResponse(
-                request=request,
-                name="login.html",
-                context={"error": "Invalid username or password", "user": None, "next": next},
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Invalid username or password"},
             )
 
         assert user.id is not None  # User was authenticated, so ID is guaranteed
         try:
-            session_id = create_session(user.id, request.app.state.db_path)
+            session_id, csrf_token = create_session(user.id, request.app.state.db_path)
         except SessionCreationError as e:
             logger.error("Failed to create session during login for user %s: %s", user.username, e)
             return templates.TemplateResponse(

@@ -40,11 +40,35 @@
             color: #666;
             font-size: 0.9em;
         }
+
+        /* Feed row highlighting */
+        .feed-created {
+            background-color: #d4edda !important;
+            animation: fade-out 3s ease-in-out forwards;
+        }
+
+        @keyframes fade-out {
+            0% {
+                background-color: #d4edda;
+            }
+            70% {
+                background-color: #d4edda;
+            }
+            100% {
+                background-color: transparent;
+            }
+        }
     </style>
 {% endblock %}
 
 {% block main %}
     <h1>Feeds</h1>
+
+    {% if created %}
+    <div class="flash-message" style="background-color: #d4edda; color: #155724; padding: 1em; margin-bottom: 1em; border: 1px solid #c3e6cb; border-radius: 4px;">
+        Feed logged successfully!
+    </div>
+    {% endif %}
 
     {% if feeds %}
         <div class="table-container">
@@ -58,7 +82,7 @@
                 </thead>
                 <tbody>
                 {% for feed in feeds %}
-                    <tr>
+                    <tr id="feed-{{ feed.id }}" {% if created and feed.id == created|int %}class="feed-created"{% endif %}>
                         <td class="volume">{{ feed.ounces }} oz</td>
                         <td>
                             <time class="feed-datetime" datetime="{{ feed.datetime.in_timezone('UTC').to_iso8601_string() }}">
