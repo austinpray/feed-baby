@@ -36,6 +36,7 @@ CREATE INDEX idx_users_username ON users(username);
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL,
+    csrf_token TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) STRICT;
 

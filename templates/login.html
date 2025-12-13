@@ -47,4 +47,60 @@
         <p>Don't have an account? <a href="/register">Register</a></p>
         <p><a href="/">Back to Home</a></p>
     </div>
+
+    <script>
+        document.querySelector('.auth-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+            csrfFetch('/login', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(async response => {
+                if (response.redirected) {
+                    // Follow redirect on success
+                    window.location.href = response.url;
+                    return;
+                }
+
+                if (response.status === 403) {
+                    alert('CSRF validation failed. Please refresh and try again.');
+                    return;
+                }
+
+                if (!response.ok) {
+                    // Handle error response
+                    try {
+                        const data = await response.json();
+                        showError(data.error || 'Login failed');
+                    } catch (e) {
+                        showError('An unexpected error occurred. Please try again.');
+                    }
+                    return;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An unexpected error occurred. Please try again.');
+            });
+        });
+
+        function showError(message) {
+            // Remove existing error if present
+            const existingError = document.querySelector('.error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            // Create and insert new error
+            const errorEl = document.createElement('p');
+            errorEl.className = 'error';
+            errorEl.textContent = message;
+
+            const h1 = document.querySelector('h1');
+            h1.insertAdjacentElement('afterend', errorEl);
+        }
+    </script>
 {% endblock %}

@@ -21,10 +21,11 @@ def client(tmp_path):
 
 @pytest.fixture
 def authenticated_client(tmp_path):
-    """Create test client with authenticated user."""
+    """Create test client with authenticated user and CSRF token."""
     from migrate import migrate
     from feed_baby.app import bootstrap_server
     from feed_baby.user import User
+    from feed_baby.auth import get_session
 
     db_path = str(tmp_path / "test.db")
     migrate(db_path)
@@ -44,6 +45,16 @@ def authenticated_client(tmp_path):
         follow_redirects=False,
     )
     assert response.status_code == 303
+
+    # Extract CSRF token from session
+    session_id = client.cookies.get("session_id")
+    assert session_id is not None
+    session_data = get_session(session_id, db_path)
+    assert session_data is not None
+    csrf_token = session_data[1]
+
+    # Attach CSRF token to client for convenience
+    client.csrf_token = csrf_token  # type: ignore[attr-defined]
 
     return client
 
@@ -72,9 +83,10 @@ def test_post_feeds_create(authenticated_client):
             "date": "2025-12-09",
             "timezone": "UTC",
         },
+        headers={"X-CSRFToken": authenticated_client.csrf_token},
     )
     assert response.status_code == 200
-    assert b"Feed logged" in response.content
+    assert response.json()["success"] is True
 
 
 def test_post_feeds_requires_auth(client):
@@ -104,11 +116,16 @@ def test_delete_feeds_success(authenticated_client):
             "date": "2025-12-09",
             "timezone": "UTC",
         },
+        headers={"X-CSRFToken": authenticated_client.csrf_token},
     )
 
     # Delete the feed (feed_id is 1 since it's the first feed)
     # Use follow_redirects=False to check redirect status code
-    response = authenticated_client.delete("/feeds/1", follow_redirects=False)
+    response = authenticated_client.delete(
+        "/feeds/1",
+        follow_redirects=False,
+        headers={"X-CSRFToken": authenticated_client.csrf_token},
+    )
 
     # Should redirect with 303 to /feeds
     assert response.status_code == 303
@@ -181,7 +198,10 @@ def test_login_next_param_redirect(client):
 
 def test_delete_feeds_not_found(authenticated_client):
     """Test DELETE /feeds/{id} returns error for non-existent feed."""
-    response = authenticated_client.delete("/feeds/9999")
+    response = authenticated_client.delete(
+        "/feeds/9999",
+        headers={"X-CSRFToken": authenticated_client.csrf_token},
+    )
     assert response.status_code == 200  # Returns error template
     assert b"Feed with ID 9999 not found" in response.content
 
@@ -200,15 +220,29 @@ def test_register_success(client):
 
 def test_register_duplicate_username(client):
     """Test POST /register fails with duplicate username."""
-    # Register first user
-    client.post("/register", data={"username": "duplicateuser", "password": "password1"})
+    from feed_baby.auth import get_session
 
-    # Try to register with same username
-    response = client.post(
-        "/register", data={"username": "duplicateuser", "password": "password2"}
+    # Register first user
+    first_response = client.post(
+        "/register",
+        data={"username": "duplicateuser", "password": "password1"},
+        follow_redirects=False,
     )
-    assert response.status_code == 200
-    assert b"Username already exists" in response.content
+    assert first_response.status_code == 303
+
+    # Get CSRF token from the session created by first registration
+    session_id = client.cookies.get("session_id")
+    session_data = get_session(session_id, client.app.state.db_path)
+    csrf_token = session_data[1] if session_data else None
+
+    # Try to register with same username (need CSRF token since we're now authenticated)
+    response = client.post(
+        "/register",
+        data={"username": "duplicateuser", "password": "password2"},
+        headers={"X-CSRFToken": csrf_token} if csrf_token else {},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"] == "Username already exists"
 
 
 def test_login_success(client):
@@ -239,8 +273,8 @@ def test_login_invalid_credentials(client):
     response = client.post(
         "/login", data={"username": "nonexistent", "password": "wrongpassword"}
     )
-    assert response.status_code == 200
-    assert b"Invalid username or password" in response.content
+    assert response.status_code == 401
+    assert response.json()["error"] == "Invalid username or password"
 
 
 def test_login_empty_username(client):
@@ -289,8 +323,8 @@ def test_login_whitespace_only_username(client):
     """Test POST /login handles whitespace-only username gracefully."""
     # Whitespace-only username will pass validation but fail authentication
     response = client.post("/login", data={"username": "   ", "password": "somepassword"})
-    assert response.status_code == 200
-    assert b"Invalid username or password" in response.content
+    assert response.status_code == 401
+    assert response.json()["error"] == "Invalid username or password"
 
 
 def test_login_whitespace_only_password(client):
@@ -307,13 +341,17 @@ def test_login_whitespace_only_password(client):
     response = client.post(
         "/login", data={"username": "testwhitespace", "password": "   "}
     )
-    assert response.status_code == 200
-    assert b"Invalid username or password" in response.content
+    assert response.status_code == 401
+    assert response.json()["error"] == "Invalid username or password"
 
 
 def test_logout(authenticated_client):
     """Test POST /logout clears session."""
-    response = authenticated_client.post("/logout", follow_redirects=False)
+    response = authenticated_client.post(
+        "/logout",
+        follow_redirects=False,
+        headers={"X-CSRFToken": authenticated_client.csrf_token},
+    )
     assert response.status_code == 303
     assert response.headers["location"] == "/"
     # Note: TestClient doesn't actually delete cookies, so we can't verify deletion
